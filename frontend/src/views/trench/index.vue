@@ -63,6 +63,37 @@
       </tbody>
     </table>
 
+    <section class="merge-panel">
+      <h3>层位合并结论</h3>
+      <p v-if="mergeableLayers.length" class="merge-hint">当前可合并层位：{{ mergeableSummary }}</p>
+      <p v-else class="merge-hint">当前没有可合并的层位：需先在地层堆积页把层位推进到「编录中」或「已复核」。</p>
+      <table v-if="conclusions.length" class="data-table">
+        <thead>
+          <tr>
+            <th>合并批次</th>
+            <th>所属探方</th>
+            <th>保留层位</th>
+            <th>并入层位</th>
+            <th>办结时间</th>
+            <th>办结结论</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="batch in conclusions" :key="batch.id">
+            <td>{{ batch.id }}</td>
+            <td>{{ batch.trenchNo }}</td>
+            <td>{{ batch.targetLayerNo }}</td>
+            <td>{{ mergedLayers(batch) }}</td>
+            <td>{{ batch.finishedAt }}</td>
+            <td>{{ batch.conclusion }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="empty-state merge-empty">
+        暂无合并办结记录：在地层堆积页办结的层位合并，结论会汇总到这份清单。
+      </p>
+    </section>
+
     <footer class="page-foot">
       <span>共 {{ total }} 条探方登记记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
@@ -76,10 +107,12 @@ import { computed, onMounted, ref } from 'vue'
 import {
   downloadEntries,
   listEntries,
+  listMergeableLayers,
+  listMergeConclusions,
   moduleMeta,
   runAction as applyAction,
 } from '@/api/local-service'
-import type { EntryRow } from '@/data/types'
+import type { EntryRow, MergeBatch } from '@/data/types'
 
 const meta = moduleMeta('trench')
 const columns = ["探方编号", "所属发掘区", "布方面积", "起始层位", "现场负责人", "开工日期", "最大深度", "探方状态"]
@@ -98,6 +131,22 @@ const statusSummary = computed(() =>
     count: rows.value.filter((row) => String(row.status) === status).length,
   })),
 )
+
+// 层位合并结论与可合并候选：和地层堆积页合并面板读同一份数据。
+const conclusions = ref<MergeBatch[]>([])
+const mergeableLayers = ref<EntryRow[]>([])
+const mergeableSummary = computed(() => {
+  const groups = new Map<string, string[]>()
+  for (const row of mergeableLayers.value) {
+    const trench = String(row['所属探方'] ?? '未指定探方')
+    groups.set(trench, [...(groups.get(trench) ?? []), String(row['层位编号'])])
+  }
+  return [...groups.entries()].map(([trench, layers]) => `${trench}（${layers.join('、')}）`).join('；')
+})
+
+function mergedLayers(batch: MergeBatch): string {
+  return batch.steps.map((step) => step.layerNo).join('、')
+}
 
 function resetFilters() {
   filters.value = {}
@@ -128,6 +177,8 @@ function reload() {
     const payload = listEntries(meta.key, filters.value)
     rows.value = payload.items
     total.value = payload.total
+    conclusions.value = listMergeConclusions()
+    mergeableLayers.value = listMergeableLayers()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '探方登记列表读取失败'
   }

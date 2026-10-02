@@ -68,4 +68,11 @@ npm run build
 - 字段、状态、动作与流转目标集中在 `frontend/src/data/modules.ts`；示例数据在
   `frontend/src/data/seed.ts`。
 - 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断。
-- 想回到初始数据：清掉浏览器里 `archaeology-field:entries` 这一项，或调用 `resetModule(模块)`。
+- 层位合并走整批流程（`local-service.ts` 的 `mergeStrata` / `resumeMerge`）：要么整批办结、
+  要么整体不办结。每步进度落在 `archaeology-field:merge-batches` 台账
+  （`frontend/src/data/merge-journal.ts`）里，断线中断后从失败那条续办，已并好的层位沿用
+  既有结论、不被重试改写；办结时被并层位移出编录清单、保留层位字段一次性落账。土质、土色
+  与合并单不一致时以现场编录原单为准。办结结论汇总在探方登记页的层位合并结论清单；可合并
+  候选层位由 `listMergeableLayers()` 统一提供，地层堆积页与探方登记页读的是同一份。
+- 想回到初始数据：清掉浏览器里 `archaeology-field:entries` 与 `archaeology-field:merge-batches`
+  这两项，或调用 `resetModule(模块)`。

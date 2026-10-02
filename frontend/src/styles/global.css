@@ -35,3 +35,16 @@ body { margin: 0; background: #f6f8fb; color: #1f2937; }
 .error-text { color: #b42318; }
 .status-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 10px; font-size: 12px; color: var(--muted); }
 .legend-item { background: #eef2f7; border-radius: 999px; padding: 2px 10px; }
+.merge-panel { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-top: 14px; }
+.merge-panel h3 { margin: 0 0 6px; font-size: 15px; }
+.merge-panel h4 { margin: 10px 0 6px; font-size: 13px; }
+.merge-hint { color: var(--muted); font-size: 12px; margin: 4px 0; }
+.merge-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 8px; }
+.merge-sources { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.merge-sources > span { font-size: 12px; color: var(--muted); }
+.merge-source-item { display: flex; gap: 6px; align-items: center; }
+.merge-note { color: var(--muted); font-style: normal; font-size: 12px; }
+.merge-empty { padding: 12px; border: 1px dashed var(--border); border-radius: 6px; margin-top: 8px; }
+.merge-message { font-size: 13px; color: #175cd3; }
+.merge-pending ul { margin: 4px 0; padding-left: 18px; font-size: 13px; }
+.merge-pending li { margin-bottom: 4px; }
