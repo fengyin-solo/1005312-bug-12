@@ -3,10 +3,9 @@
     <header class="page-head">
       <div>
         <h2>探方登记管理</h2>
-        <p class="page-desc">维护探方，围绕探方编号、所属发掘区、布方面积、起始层位做登记、筛选与状态流转。</p>
+        <p class="page-desc">维护探方，围绕探方编号、所属发掘区、布方面积、起始层位做登记、筛选与状态流转；层位合并办结结论直接落在本清单。</p>
       </div>
       <div class="page-actions">
-        <button class="btn primary" type="button" @click="openCreate">登记探方</button>
         <button class="btn" type="button" @click="exportRows">导出探方登记清单</button>
       </div>
     </header>
@@ -58,10 +57,42 @@
           </td>
         </tr>
         <tr v-if="!rows.length">
-          <td :colspan="columns.length + 2" class="empty-state">暂无探方登记数据，可先登记探方</td>
+          <td :colspan="columns.length + 2" class="empty-state">
+            <template v-if="hasFilters">没有符合检索条件的探方，换个关键词或重置条件再试。</template>
+            <template v-else>暂无探方登记数据，可先登记探方</template>
+          </td>
         </tr>
       </tbody>
     </table>
+
+    <section class="directory-panel">
+      <header class="directory-head">
+        <h3>本探方相关层位编号（与地层编录同一份目录数据）</h3>
+        <button class="btn ghost" type="button" @click="tick += 1">刷新目录</button>
+      </header>
+      <p class="muted small">层位编号数据只有一处来源：此处、地层编录清单、合并办理读到的完全一致。</p>
+      <table class="data-table compact">
+        <thead>
+          <tr>
+            <th>层位编号</th>
+            <th>所属探方</th>
+            <th>层位状态</th>
+            <th>并入去向</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="entry in directory" :key="entry.code">
+            <td>{{ entry.code }}</td>
+            <td>{{ entry.trench }}</td>
+            <td>{{ entry.status }}</td>
+            <td>{{ entry.absorbed ? `已并入 ${entry.mergedIntoCode}` : '—' }}</td>
+          </tr>
+          <tr v-if="!directory.length">
+            <td colspan="4" class="empty-state">目录里还没有层位编号；地层编录登记后会自动出现在这里。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
     <footer class="page-foot">
       <span>共 {{ total }} 条探方登记记录</span>
@@ -80,24 +111,42 @@ import {
   runAction as applyAction,
 } from '@/api/local-service'
 import type { EntryRow } from '@/data/types'
+import { readStratumDirectory } from '@/shared/stratum-directory'
 
 const meta = moduleMeta('trench')
-const columns = ["探方编号", "所属发掘区", "布方面积", "起始层位", "现场负责人", "开工日期", "最大深度", "探方状态"]
-const actions = ["提交布方", "登记停掘", "办理回填"]
-const statuses = ["待布方", "发掘中", "已停掘", "已回填"]
-const stats = [{"label": "发掘中探方", "value": 0}, {"label": "待布方探方", "value": 0}, {"label": "累计布方面积", "value": 0}]
+const columns = ['探方编号', '所属发掘区', '布方面积', '起始层位', '现场负责人', '开工日期', '最大深度', '层位合并结论', '探方状态']
+const actions = ['提交布方', '登记停掘', '办理回填']
+const statuses = ['待布方', '发掘中', '已停掘', '已回填']
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+const tick = ref(0)
+
+const hasFilters = computed(() =>
+  Object.values(filters.value).some((value) => value.trim() !== ''),
+)
+
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
     status,
     count: rows.value.filter((row) => String(row.status) === status).length,
   })),
 )
+
+const stats = computed(() => [
+  { label: '发掘中探方', value: rows.value.filter((row) => row.status === '发掘中').length },
+  { label: '待布方探方', value: rows.value.filter((row) => row.status === '待布方').length },
+  { label: '已落合并结论', value: rows.value.filter((row) => String(row['层位合并结论'] ?? '') !== '').length },
+])
+
+const directory = computed(() => {
+  void tick.value
+  const trenchCodes = new Set(rows.value.map((row) => String(row['探方编号'] ?? '')))
+  return readStratumDirectory().filter((entry) => trenchCodes.has(entry.trench))
+})
 
 function resetFilters() {
   filters.value = {}
@@ -106,10 +155,6 @@ function resetFilters() {
 
 function exportRows() {
   downloadEntries(meta.key)
-}
-
-function openCreate() {
-  errorMessage.value = '探方登记入口尚未接入审批流'
 }
 
 function runAction(action: string, row: EntryRow) {
@@ -128,6 +173,7 @@ function reload() {
     const payload = listEntries(meta.key, filters.value)
     rows.value = payload.items
     total.value = payload.total
+    tick.value += 1
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '探方登记列表读取失败'
   }
